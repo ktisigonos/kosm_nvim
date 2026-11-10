@@ -12,7 +12,8 @@ file: []const u8 = "~/.config/nvim/lua/theme.lua",
 /// How values are spelled, e.g. `.color = .hex_upper`. Null fields take the Lua
 /// adapter's `true`/`false`, then kosm's `#rrggbb` and 6 float decimals.
 format: kosm.Format = .{},
-/// Whether the colorscheme leaves the background transparent. null: not written.
+/// Whether the colorscheme leaves the background transparent. null: `true` when
+/// `base16.base00`, the background, has an alpha below 1, else not written.
 transparent: ?bool = null,
 /// The base16 slots.
 base16: Base16 = .{},
@@ -32,7 +33,7 @@ pub const Terminal = @import("Terminal.zig");
 pub fn from(theme: kosm.Theme) App {
     const palette = theme.palette;
     const variations = theme.variations;
-    const background = if (theme.mode == .dark) palette.black else palette.white;
+    const background = theme.asBackground(if (theme.mode == .dark) palette.black else palette.white);
     const foreground = if (theme.mode == .dark) palette.white else palette.black;
     const bright = variations.lightness.bright;
     return .{
@@ -75,6 +76,13 @@ pub fn from(theme: kosm.Theme) App {
     };
 }
 
+/// `transparent`, or when it is null, `true` for a background that is not opaque.
+fn derivedTransparent(self: App) ?bool {
+    if (self.transparent) |transparent| return transparent;
+    const background = self.base16.base00 orelse return null;
+    return if (background.alpha < 1) true else null;
+}
+
 /// Writes every set value to `file`, then the extras.
 pub fn apply(self: App, output: *kosm.Output) !void {
     const values = try kosm.Setting.leaves(output.allocator, try self.tree(output.allocator));
@@ -86,7 +94,7 @@ pub fn apply(self: App, output: *kosm.Output) !void {
 /// config reads them (`theme.base00`, `theme.br_white`).
 fn tree(self: App, allocator: std.mem.Allocator) std.mem.Allocator.Error!kosm.Value {
     var entries: std.ArrayList(kosm.Value.Entry) = .empty;
-    if (self.transparent) |transparent| try entries.append(allocator, .{ .key = "transparent", .value = .{ .boolean = transparent } });
+    if (self.derivedTransparent()) |transparent| try entries.append(allocator, .{ .key = "transparent", .value = .{ .boolean = transparent } });
     try appendColors(allocator, &entries, self.base16);
     try appendColors(allocator, &entries, self.terminal);
     return .{ .table = entries.items };
@@ -194,4 +202,33 @@ test "extras follow the app's values, nested by path, and a clash fails naming b
     app.extra = &.{.{ .path = "base00.dim", .value = .{ .color = kosm.hex("000000") } }};
     try testing.expectError(error.AppFailed, app.apply(&fixture.output));
     try testing.expectEqualStrings("extra 'base00.dim' and setting 'base00' write the same key, or one inside the other; keep one", fixture.diagnostics.message());
+}
+
+test "a background below full alpha turns transparent on, an opaque one writes no switch, and a set one wins" {
+    const palette: kosm.Palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc") };
+    var theme = kosm.Theme.from(palette, .dark);
+    {
+        var fixture: Fixture = undefined;
+        try fixture.init();
+        defer fixture.deinit();
+        try from(theme).apply(&fixture.output);
+        try testing.expectStringStartsWith(fixture.plan.files.items[0].new, "return {\n    base00 = \"#041c26\",\n");
+    }
+    theme.background_alpha = 0.5;
+    {
+        var fixture: Fixture = undefined;
+        try fixture.init();
+        defer fixture.deinit();
+        try from(theme).apply(&fixture.output);
+        try testing.expectStringStartsWith(fixture.plan.files.items[0].new, "return {\n    transparent = true,\n    base00 = \"#041c26\",\n");
+    }
+    {
+        var fixture: Fixture = undefined;
+        try fixture.init();
+        defer fixture.deinit();
+        var app = from(theme);
+        app.transparent = false;
+        try app.apply(&fixture.output);
+        try testing.expectStringStartsWith(fixture.plan.files.items[0].new, "return {\n    transparent = false,\n    base00 = \"#041c26\",\n");
+    }
 }
