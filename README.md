@@ -30,21 +30,21 @@ Every color is null by default; the column says what `from(theme)` sets.
 | `format` | `.{}`: the Lua adapter's `true`/`false`, then `#rrggbb` and 6 float decimals |
 | `transparent` | null: `true` when the background (`base16.base00`) has an alpha below 1, as with a theme's `background_alpha`; else not written |
 | `extra` | `&.{}`: values the app doesn't cover, by path |
-| `base16.base00` | black, white in light mode (background) |
+| `base16.base00` | the theme's background role |
 | `base16.base01` | `surface.raised` of `base00` |
 | `base16.base02` | `state.selected` of `base00` |
-| `base16.base03` | `emphasis.muted` of `base05` (comments) |
+| `base16.base03` | the theme's `code.comment` (comments) |
 | `base16.base04` | `emphasis.muted` of `base05` |
-| `base16.base05` | white, black in light mode (foreground) |
+| `base16.base05` | the theme's foreground role |
 | `base16.base06` | `emphasis.strong` of `base05` |
 | `base16.base07` | `lightness.bright` of `base05` |
-| `base16.base08` | red |
-| `base16.base09` | orange |
-| `base16.base0A` | yellow |
-| `base16.base0B` | green |
+| `base16.base08` | `code.tag` |
+| `base16.base09` | `code.number` |
+| `base16.base0A` | `code.type` |
+| `base16.base0B` | `code.string` |
 | `base16.base0C` | cyan |
-| `base16.base0D` | blue |
-| `base16.base0E` | purple |
+| `base16.base0D` | `code.function` |
+| `base16.base0E` | `code.keyword` |
 | `base16.base0F` | pink |
 | `terminal.black` ... `terminal.white` | the palette's black, white and the wheel's hues |
 | `terminal.br_black` ... `terminal.br_white` | `lightness.bright` of each |

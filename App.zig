@@ -28,31 +28,32 @@ extra: []const kosm.Setting = &.{},
 pub const Base16 = @import("Base16.zig");
 pub const Terminal = @import("Terminal.zig");
 
-/// Colors from the theme: base16 backgrounds and foregrounds from black and white
-/// (swapped in light mode), its accents and the terminal colors from the wheel.
+/// Colors from the theme: base16 backgrounds and foregrounds from the background and foreground
+/// roles, comments, variables, constants, types, strings, functions and keywords from the code
+/// colors (variables from `code.tag`), `base0C` and `base0F` and the terminal colors from the wheel.
 pub fn from(theme: kosm.Theme) App {
     const palette = theme.palette;
     const variations = theme.variations;
-    const background = theme.asBackground(if (theme.mode == .dark) palette.black else palette.white);
-    const foreground = if (theme.mode == .dark) palette.white else palette.black;
+    const background = theme.asBackground(theme.roles.background);
+    const foreground = theme.roles.foreground;
     const bright = variations.lightness.bright;
     return .{
         .base16 = .{
             .base00 = background,
             .base01 = variations.surface.raised.apply(background),
             .base02 = variations.state.selected.apply(background),
-            .base03 = variations.emphasis.muted.apply(foreground),
+            .base03 = theme.code.comment,
             .base04 = variations.emphasis.muted.apply(foreground),
             .base05 = foreground,
             .base06 = variations.emphasis.strong.apply(foreground),
             .base07 = bright.apply(foreground),
-            .base08 = palette.red,
-            .base09 = palette.orange,
-            .base0A = palette.yellow,
-            .base0B = palette.green,
+            .base08 = theme.code.tag,
+            .base09 = theme.code.number,
+            .base0A = theme.code.type,
+            .base0B = theme.code.string,
             .base0C = palette.cyan,
-            .base0D = palette.blue,
-            .base0E = palette.purple,
+            .base0D = theme.code.function,
+            .base0E = theme.code.keyword,
             .base0F = palette.pink,
         },
         .terminal = .{
@@ -144,7 +145,7 @@ test "apply writes the palette as one flat Lua table" {
     var fixture: Fixture = undefined;
     try fixture.init();
     defer fixture.deinit();
-    const theme = kosm.Theme.from(.{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc"), .red = kosm.hex("80333c") }, .dark);
+    const theme = kosm.Theme.from(.{ .palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc"), .red = kosm.hex("80333c") }, .mode = .dark });
     var app = from(theme);
     app.transparent = true;
     app.terminal.br_white = kosm.hex("b7dce5");
@@ -206,7 +207,7 @@ test "extras follow the app's values, nested by path, and a clash fails naming b
 
 test "a background below full alpha turns transparent on, an opaque one writes no switch, and a set one wins" {
     const palette: kosm.Palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("a3c5cc") };
-    var theme = kosm.Theme.from(palette, .dark);
+    var theme = kosm.Theme.from(.{ .palette = palette, .mode = .dark });
     {
         var fixture: Fixture = undefined;
         try fixture.init();
