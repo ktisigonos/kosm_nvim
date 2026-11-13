@@ -29,6 +29,7 @@ Every color is null by default; the column says what `from(theme)` sets.
 | `file` | `~/.config/nvim/lua/theme.lua` |
 | `format` | `.{}`: the Lua adapter's `true`/`false`, then `#rrggbb` and 6 float decimals |
 | `transparent` | null: `true` when the background (`base16.base00`) has an alpha below 1, as with a theme's `background_alpha`; else not written |
+| `background` | null: not written; `from`: `"dark"` or `"light"`, the theme's mode, for the config to set Neovim's `background` option |
 | `extra` | `&.{}`: values the app doesn't cover, by path |
 | `base16.base00` | the theme's background role |
 | `base16.base01` | `surface.raised` of `base00` |

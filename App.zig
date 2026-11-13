@@ -15,6 +15,9 @@ format: kosm.Format = .{},
 /// Whether the colorscheme leaves the background transparent. null: `true` when
 /// `base16.base00`, the background, has an alpha below 1, else not written.
 transparent: ?bool = null,
+/// Neovim's `background` option, which plugins read to pick dark or light colors; the user's
+/// config sets it from the module. null: not written. `from`: the theme's mode.
+background: ?Background = null,
 /// The base16 slots.
 base16: Base16 = .{},
 /// The 8 terminal colors and their bright variants.
@@ -24,6 +27,9 @@ terminal: Terminal = .{},
 /// One whose path equals, contains or lies inside a set value's or another extra's fails the
 /// apply. Default: none.
 extra: []const kosm.Setting = &.{},
+
+/// Neovim's `background`: whether the colors are dark or light.
+pub const Background = enum { dark, light };
 
 pub const Base16 = @import("Base16.zig");
 pub const Terminal = @import("Terminal.zig");
@@ -38,6 +44,10 @@ pub fn from(theme: kosm.Theme) App {
     const foreground = theme.roles.foreground;
     const bright = variations.lightness.bright;
     return .{
+        .background = switch (theme.mode) {
+            .dark => .dark,
+            .light => .light,
+        },
         .base16 = .{
             .base00 = background,
             .base01 = variations.surface.raised.apply(background),
@@ -91,11 +101,12 @@ pub fn apply(self: App, output: *kosm.Output) !void {
     try output.generate(.{ .file = self.file, .lang = "lua", .format = self.format }, try kosm.Setting.tree(output.allocator, all));
 }
 
-/// `transparent`, then the base16 slots, then the terminal colors, in one table as the user's
-/// config reads them (`theme.base00`, `theme.br_white`).
+/// `transparent` and `background`, then the base16 slots, then the terminal colors, in one table
+/// as the user's config reads them (`theme.base00`, `theme.br_white`).
 fn tree(self: App, allocator: std.mem.Allocator) std.mem.Allocator.Error!kosm.Value {
     var entries: std.ArrayList(kosm.Value.Entry) = .empty;
     if (self.derivedTransparent()) |transparent| try entries.append(allocator, .{ .key = "transparent", .value = .{ .boolean = transparent } });
+    if (self.background) |background| try entries.append(allocator, .{ .key = "background", .value = .{ .string = @tagName(background) } });
     try appendColors(allocator, &entries, self.base16);
     try appendColors(allocator, &entries, self.terminal);
     return .{ .table = entries.items };
@@ -153,10 +164,15 @@ test "apply writes the palette as one flat Lua table" {
     try testing.expectEqual(0, fixture.warnings.items.items.len);
 
     const written = fixture.plan.files.items[0].new;
-    try testing.expectStringStartsWith(written, "return {\n    transparent = true,\n    base00 = \"#041c26\",\n");
+    try testing.expectStringStartsWith(written, "return {\n    transparent = true,\n    background = \"dark\",\n    base00 = \"#041c26\",\n");
     try testing.expect(std.mem.indexOf(u8, written, "\n    base08 = \"#80333c\",\n") != null);
     try testing.expect(std.mem.indexOf(u8, written, "\n    white = \"#a3c5cc\",\n") != null);
     try testing.expectStringEndsWith(written, "\n    br_white = \"#b7dce5\",\n}\n");
+}
+
+test "a light theme writes a light background" {
+    const theme = kosm.Theme.from(.{ .palette = .{ .black = kosm.hex("041c26"), .white = kosm.hex("d8ecf1") }, .mode = .light });
+    try testing.expectEqual(.light, from(theme).background);
 }
 
 test "App{} writes an empty module, and only set values are written" {
@@ -213,7 +229,7 @@ test "a background below full alpha turns transparent on, an opaque one writes n
         try fixture.init();
         defer fixture.deinit();
         try from(theme).apply(&fixture.output);
-        try testing.expectStringStartsWith(fixture.plan.files.items[0].new, "return {\n    base00 = \"#041c26\",\n");
+        try testing.expectStringStartsWith(fixture.plan.files.items[0].new, "return {\n    background = \"dark\",\n    base00 = \"#041c26\",\n");
     }
     theme.background_alpha = 0.5;
     {
@@ -221,7 +237,7 @@ test "a background below full alpha turns transparent on, an opaque one writes n
         try fixture.init();
         defer fixture.deinit();
         try from(theme).apply(&fixture.output);
-        try testing.expectStringStartsWith(fixture.plan.files.items[0].new, "return {\n    transparent = true,\n    base00 = \"#041c26\",\n");
+        try testing.expectStringStartsWith(fixture.plan.files.items[0].new, "return {\n    transparent = true,\n    background = \"dark\",\n    base00 = \"#041c26\",\n");
     }
     {
         var fixture: Fixture = undefined;
@@ -230,6 +246,6 @@ test "a background below full alpha turns transparent on, an opaque one writes n
         var app = from(theme);
         app.transparent = false;
         try app.apply(&fixture.output);
-        try testing.expectStringStartsWith(fixture.plan.files.items[0].new, "return {\n    transparent = false,\n    base00 = \"#041c26\",\n");
+        try testing.expectStringStartsWith(fixture.plan.files.items[0].new, "return {\n    transparent = false,\n    background = \"dark\",\n    base00 = \"#041c26\",\n");
     }
 }
