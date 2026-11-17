@@ -1,8 +1,9 @@
 # kosm_nvim
 
-Neovim for kosm: its highlight groups and the terminal colors, written into Neovim's config
-folder as `lua/kosm/theme.lua`, with kosm's plugin beside it. Neovim loads the plugin by itself
-(`plugin/kosm.lua`), so there is nothing to install or set up: it applies the colors at startup
+Neovim for kosm: its highlight groups and the terminal colors, written as `lua/kosm/theme.lua`
+into Neovim's site folder (`~/.local/share/nvim/site`), with kosm's plugin beside it. Neovim
+loads the site folder by itself, and so does lazy.nvim, so the plugin needs no install and your
+config needs no line for it, nor knows kosm is there: it applies the colors at startup
 and again whenever kosm writes them, and `:colorscheme kosm` brings them back after trying
 another scheme.
 
@@ -15,7 +16,7 @@ terminal color's hex code (`'br_blue'` for the bright one; the current colorsche
 one, else kosm's), and `require('kosm').on(hex)` the terminal's black or white, whichever reads
 better on `hex`.
 
-kosm owns these files under `directory` (`~/.config/nvim` by default):
+kosm owns these files under `directory` (`~/.local/share/nvim/site` by default):
 
 | File | What it is |
 |---|---|
@@ -60,7 +61,7 @@ Every group is empty and every color null by default; the column says what `from
 
 | Field | Default |
 |---|---|
-| `directory` | `~/.config/nvim`: Neovim's config folder |
+| `directory` | `~/.local/share/nvim/site`: Neovim's site folder; another `NVIM_APPNAME` or `XDG_DATA_HOME` needs its own |
 | `plugin` | `true`: also write the plugin |
 | `colorscheme` | null: kosm's own groups |
 | `format` | `.{}`: the Lua adapter's `true`/`false`, then `#rrggbb` and 6 float decimals |

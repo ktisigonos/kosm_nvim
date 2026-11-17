@@ -1,5 +1,5 @@
 //! Neovim's colors: its highlight groups (or the colorscheme a kosmos names), the kosmos' own
-//! groups and the terminal colors, written into Neovim's config folder as `lua/kosm/theme.lua`,
+//! groups and the terminal colors, written into Neovim's site folder as `lua/kosm/theme.lua`,
 //! with kosm's plugin beside it, which applies them and reapplies them whenever kosm rewrites
 //! them. Empty groups and null values are not written.
 
@@ -8,10 +8,12 @@ const App = @This();
 const std = @import("std");
 const kosm = @import("kosm");
 
-/// Neovim's config folder. kosm owns `lua/kosm/theme.lua` (the colors), and with `plugin` also
-/// `lua/kosm/init.lua`, `plugin/kosm.lua` and `colors/kosm.lua` there. Default: `~/.config/nvim`.
-directory: []const u8 = "~/.config/nvim",
-/// Whether kosm writes its plugin, which Neovim loads by itself from the config folder: it
+/// Neovim's site folder, in its data directory, which Neovim and lazy.nvim always load from,
+/// so the user's config needs nothing. kosm owns `lua/kosm/theme.lua` (the colors), and with
+/// `plugin` also `lua/kosm/init.lua`, `plugin/kosm.lua` and `colors/kosm.lua` there. Default:
+/// `~/.local/share/nvim/site`; another `NVIM_APPNAME` or `XDG_DATA_HOME` needs its own.
+directory: []const u8 = "~/.local/share/nvim/site",
+/// Whether kosm writes its plugin, which Neovim loads by itself from the site folder: it
 /// applies `lua/kosm/theme.lua` at startup and again whenever kosm rewrites it, makes
 /// `:colorscheme kosm` bring the colors back, and offers `require('kosm').color('blue')` and
 /// `.on(hex)` for the user's config. false: only the colors are written, for a config that
@@ -347,14 +349,14 @@ test "the colors go to lua/kosm/theme.lua with the plugin beside them, or alone 
     var fixture: Fixture = undefined;
     try fixture.init();
     defer fixture.deinit();
-    var app: App = .{ .directory = "~/.config/nvim-work/" };
+    var app: App = .{ .directory = "~/.local/share/nvim-work/site/" };
     try app.apply(&fixture.output);
     const files = fixture.plan.files.items;
     try testing.expectEqual(4, files.len);
-    try testing.expectStringEndsWith(files[0].path, "/.config/nvim-work/lua/kosm/theme.lua");
-    try testing.expectStringEndsWith(files[1].path, "/.config/nvim-work/lua/kosm/init.lua");
-    try testing.expectStringEndsWith(files[2].path, "/.config/nvim-work/plugin/kosm.lua");
-    try testing.expectStringEndsWith(files[3].path, "/.config/nvim-work/colors/kosm.lua");
+    try testing.expectStringEndsWith(files[0].path, "/.local/share/nvim-work/site/lua/kosm/theme.lua");
+    try testing.expectStringEndsWith(files[1].path, "/.local/share/nvim-work/site/lua/kosm/init.lua");
+    try testing.expectStringEndsWith(files[2].path, "/.local/share/nvim-work/site/plugin/kosm.lua");
+    try testing.expectStringEndsWith(files[3].path, "/.local/share/nvim-work/site/colors/kosm.lua");
     try testing.expectEqualStrings("require('kosm').setup()\n", files[2].new[std.mem.indexOfScalar(u8, files[2].new, '\n').? + 1 ..]);
 }
 
