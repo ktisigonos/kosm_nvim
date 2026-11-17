@@ -1,24 +1,33 @@
 # kosm_nvim
 
-Neovim for kosm: its highlight groups and the terminal colors, written to
-`~/.config/nvim/lua/theme.lua`, which returns them as one Lua table. No colorscheme plugin is
-needed; set them from your own nvim config:
+Neovim for kosm: its highlight groups and the terminal colors, written into Neovim's config
+folder as `lua/kosm/theme.lua`, with kosm's plugin beside it. Neovim loads the plugin by itself
+(`plugin/kosm.lua`), so there is nothing to install or set up: it applies the colors at startup
+and again whenever kosm writes them, and `:colorscheme kosm` brings them back after trying
+another scheme.
 
-```lua
-local theme = require('theme')
-vim.cmd.highlight 'clear'
-if theme.background then vim.o.background = theme.background end
-for name, highlight in pairs(theme.highlights or {}) do
-  vim.api.nvim_set_hl(0, name, highlight)
-end
-vim.g.colors_name = 'kosm'
-```
+A kosmos may name a colorscheme instead (`app.colorscheme = "catppuccin-mocha"`, installed like
+any plugin); the plugin then loads that one in place of kosm's own groups, and `background`,
+`groups` and the terminal colors still apply.
 
-The table holds `background` (`"dark"` or `"light"`), `highlights` (each group by Neovim's name,
-as `nvim_set_hl` takes it: `highlights.CursorLine`, `highlights["@variable.member"]`) and
-`terminal` (`terminal.blue`, `terminal.br_blue`). It is written through the `lua` adapter of
-`kosm_lua`, which this package brings along (`kosm_nvim.lua_adapter`). Empty groups and null
-values are not written, so Neovim's own default applies.
+Your own config can read the colors through the plugin: `require('kosm').color('blue')` is a
+terminal color's hex code (`'br_blue'` for the bright one; the current colorscheme's when it sets
+one, else kosm's), and `require('kosm').on(hex)` the terminal's black or white, whichever reads
+better on `hex`.
+
+kosm owns these files under `directory` (`~/.config/nvim` by default):
+
+| File | What it is |
+|---|---|
+| `lua/kosm/theme.lua` | the colors: `background`, `colorscheme`, `highlights` (kosm's own groups), `groups` (the kosmos' groups) and `terminal` |
+| `lua/kosm/init.lua` | the plugin |
+| `plugin/kosm.lua` | starts the plugin when Neovim loads its plugins |
+| `colors/kosm.lua` | `:colorscheme kosm` |
+
+With `plugin = false` only `lua/kosm/theme.lua` is written, for a config loading it itself. The
+files are written through the `lua` adapter of `kosm_lua`, which this package brings along
+(`kosm_nvim.lua_adapter`). Empty groups and null values are not written, so Neovim's own
+default applies.
 
 Neovim has no alpha: a background below full alpha, as with a theme's `background_alpha`, is
 written as `bg = "NONE"`, so the terminal's translucent background shows through. Selections,
@@ -30,16 +39,18 @@ The app's fields are Neovim's group names in snake case: `editor.cursor_line_nr`
 the attributes (`bold`, `italic`, `underline`, `undercurl`, ...) and `link`, so one value can be
 assigned on its own: `app.syntax.comment.italic = true`.
 
-A minimal config can skip `from`: `kosm_nvim.App{}` writes an empty module
+A minimal config can skip `from`: `kosm_nvim.App{}` writes an empty table of colors
 (`return {}`), so assign only what you want.
 
-`groups` adds groups the app has no field for, such as a plugin's, by Neovim's name:
+`groups` sets groups the app has no field for, such as a plugin's, by Neovim's name, after kosm's
+own groups or the colorscheme:
 `.{ .name = "TreesitterContextBottom", .highlight = .{ .underline = true, .sp = kosm.hex("023142") } }`.
-One the app already writes, or listed twice, fails the apply naming it.
+Without a colorscheme, one of the app's own groups fails the apply naming it (set its field
+instead); with one, any group may be named. A group listed twice always fails.
 
-`extra` adds values the app doesn't cover to the module after its own, nested by path, each
-a `kosm.Value`: `.{ .path = "accent.soft", .value = .{ .color = kosm.hex("2d8699") } }` is
-`theme.accent.soft`. An extra whose path equals, contains or lies inside a set value's or another
+`extra` adds values the app doesn't cover to the colors' table after its own, nested by path,
+each a `kosm.Value`: `.{ .path = "accent.soft", .value = .{ .color = kosm.hex("2d8699") } }` is
+`accent.soft`. An extra whose path equals, contains or lies inside a set value's or another
 extra's fails the apply naming both.
 
 ## Fields
@@ -49,10 +60,12 @@ Every group is empty and every color null by default; the column says what `from
 
 | Field | Default |
 |---|---|
-| `file` | `~/.config/nvim/lua/theme.lua` |
+| `directory` | `~/.config/nvim`: Neovim's config folder |
+| `plugin` | `true`: also write the plugin |
+| `colorscheme` | null: kosm's own groups |
 | `format` | `.{}`: the Lua adapter's `true`/`false`, then `#rrggbb` and 6 float decimals |
 | `background` | null: not written; `from`: `"dark"` or `"light"`, the theme's mode, for the config to set Neovim's `background` option |
-| `groups` | `&.{}`: groups the app has no field for, by name |
+| `groups` | `&.{}`: the kosmos' groups, by name |
 | `extra` | `&.{}`: values the app doesn't cover, by path |
 | `editor.normal` | the foreground on the background |
 | `editor.normal_float`, `editor.pmenu`, `editor.status_line` | the foreground on `surface.raised` of the background |

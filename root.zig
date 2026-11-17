@@ -1,4 +1,4 @@
-//! Neovim: its highlight groups and terminal colors generated as `lua/theme.lua`, for the nvim config to set.
+//! Neovim: its highlight groups and terminal colors, with kosm's plugin that applies them live.
 
 const std = @import("std");
 

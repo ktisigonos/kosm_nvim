@@ -1,21 +1,33 @@
-//! Neovim's colors: its highlight groups and the terminal colors, generated into `file` as a
-//! Lua module returning one table (`background`, `highlights`, `terminal`), for the user's own
-//! nvim config to load with `require` and set with `nvim_set_hl`. Empty groups and null values
-//! are not written.
+//! Neovim's colors: its highlight groups (or the colorscheme a kosmos names), the kosmos' own
+//! groups and the terminal colors, written into Neovim's config folder as `lua/kosm/theme.lua`,
+//! with kosm's plugin beside it, which applies them and reapplies them whenever kosm rewrites
+//! them. Empty groups and null values are not written.
 
 const App = @This();
 
 const std = @import("std");
 const kosm = @import("kosm");
 
-/// The file kosm owns. Default: `~/.config/nvim/lua/theme.lua`.
-file: []const u8 = "~/.config/nvim/lua/theme.lua",
+/// Neovim's config folder. kosm owns `lua/kosm/theme.lua` (the colors), and with `plugin` also
+/// `lua/kosm/init.lua`, `plugin/kosm.lua` and `colors/kosm.lua` there. Default: `~/.config/nvim`.
+directory: []const u8 = "~/.config/nvim",
+/// Whether kosm writes its plugin, which Neovim loads by itself from the config folder: it
+/// applies `lua/kosm/theme.lua` at startup and again whenever kosm rewrites it, makes
+/// `:colorscheme kosm` bring the colors back, and offers `require('kosm').color('blue')` and
+/// `.on(hex)` for the user's config. false: only the colors are written, for a config that
+/// loads them itself. Default: true.
+plugin: bool = true,
 /// How values are spelled, e.g. `.color = .hex_upper`. Null fields take the Lua
 /// adapter's `true`/`false`, then kosm's `#rrggbb` and 6 float decimals.
 format: kosm.Format = .{},
 /// Neovim's `background` option, which plugins read to pick dark or light colors; the user's
 /// config sets it from the module. null: not written. `from`: the theme's mode.
 background: ?Background = null,
+/// A colorscheme to load instead of kosm's own groups, by the name `:colorscheme` takes
+/// (`"catppuccin-mocha"`); the user installs it like any plugin. `background`, `groups` and the
+/// terminal colors still apply. null: kosm's own groups (`editor`, `syntax`, `treesitter`,
+/// `diagnostics`, `diff`).
+colorscheme: ?[]const u8 = null,
 /// The groups of Neovim's own interface (`Normal`, `CursorLine`, `Pmenu`).
 editor: Editor = .{},
 /// The standard syntax groups (`Comment`, `Keyword`), which Treesitter captures link to.
@@ -26,13 +38,15 @@ treesitter: Treesitter = .{},
 diagnostics: Diagnostics = .{},
 /// Diff and version control groups (`DiffAdd`, `Added`).
 diff: Diff = .{},
-/// Groups the app has no field for, such as plugins', by Neovim's name, written after the
-/// app's own. One the app already writes, or listed twice, fails the apply. Default: none.
+/// Groups the app has no field for, such as plugins', by Neovim's name, set after kosm's own
+/// groups or the colorscheme. Without a colorscheme, one the app already writes fails the apply;
+/// one listed twice always does. Default: none.
 groups: []const Group = &.{},
 /// The 8 terminal colors and their bright variants, as `terminal.blue`, `terminal.br_blue`.
 terminal: Terminal = .{},
 /// Values the app doesn't cover, written into the module after its own, nested by path:
-/// `.{ .path = "accent.soft", .value = .{ .color = kosm.hex("2d8699") } }` is `theme.accent.soft`.
+/// `.{ .path = "accent.soft", .value = .{ .color = kosm.hex("2d8699") } }` is `accent.soft` in the
+/// table `require('kosm.theme')` returns.
 /// One whose path equals, contains or lies inside a set value's or another extra's fails the
 /// apply. Default: none.
 extra: []const kosm.Setting = &.{},
@@ -86,38 +100,68 @@ pub fn from(theme: kosm.Theme) App {
     };
 }
 
-/// Writes every set value to `file`, then the extras.
+/// The plugin's files, at their paths under `directory`.
+const plugin_files = [_]struct { path: []const u8, content: []const u8 }{
+    .{ .path = "lua/kosm/init.lua", .content = @embedFile("nvim/lua/kosm/init.lua") },
+    .{ .path = "plugin/kosm.lua", .content = @embedFile("nvim/plugin/kosm.lua") },
+    .{ .path = "colors/kosm.lua", .content = @embedFile("nvim/colors/kosm.lua") },
+};
+
+/// Writes every set value to `lua/kosm/theme.lua`, then the extras, then the plugin.
 pub fn apply(self: App, output: *kosm.Output) !void {
-    const values = try kosm.Setting.leaves(output.allocator, try self.tree(output));
-    const all = try kosm.Setting.withExtras(output, self.file, values, self.extra, .{});
-    try output.generate(.{ .file = self.file, .lang = "lua", .format = self.format }, try kosm.Setting.tree(output.allocator, all));
+    const allocator = output.allocator;
+    const file = try self.path(allocator, "lua/kosm/theme.lua");
+    const values = try kosm.Setting.leaves(allocator, try self.tree(output, file));
+    const all = try kosm.Setting.withExtras(output, file, values, self.extra, .{});
+    try output.generate(.{ .file = file, .lang = "lua", .format = self.format }, try kosm.Setting.tree(allocator, all));
+    if (!self.plugin) return;
+    for (plugin_files) |plugin_file| {
+        try output.verbatim(.{ .file = try self.path(allocator, plugin_file.path), .content = plugin_file.content });
+    }
 }
 
-/// `background`, then the groups under `highlights`, then the colors under `terminal`; an empty
-/// table is left out.
-fn tree(self: App, output: *kosm.Output) kosm.Output.Error!kosm.Value {
+fn path(self: App, allocator: std.mem.Allocator, relative: []const u8) std.mem.Allocator.Error![]const u8 {
+    return allocator.print("{s}/{s}", .{ std.mem.trimEnd(u8, self.directory, "/"), relative });
+}
+
+/// `background` and `colorscheme`, then kosm's groups under `highlights` (none with a
+/// colorscheme), the kosmos' under `groups`, and the colors under `terminal`; an empty table is
+/// left out. `file` is the colors' file, for errors.
+fn tree(self: App, output: *kosm.Output, file: []const u8) kosm.Output.Error!kosm.Value {
     const allocator = output.allocator;
     var entries: std.ArrayList(kosm.Value.Entry) = .empty;
     if (self.background) |background| try entries.append(allocator, .{ .key = "background", .value = .{ .string = @tagName(background) } });
-    const highlights = try self.highlightEntries(output);
+    if (self.colorscheme) |colorscheme| try entries.append(allocator, .{ .key = "colorscheme", .value = .{ .string = colorscheme } });
+    const highlights = if (self.colorscheme == null) try self.ownGroups(allocator) else &.{};
     if (highlights.len != 0) try entries.append(allocator, .{ .key = "highlights", .value = .{ .table = highlights } });
+    const groups = try self.groupEntries(output, file, highlights);
+    if (groups.len != 0) try entries.append(allocator, .{ .key = "groups", .value = .{ .table = groups } });
     const terminal = try terminalEntries(allocator, self.terminal);
     if (terminal.len != 0) try entries.append(allocator, .{ .key = "terminal", .value = .{ .table = terminal } });
     return .{ .table = entries.items };
 }
 
-/// Every written group by Neovim's name: the app's own, then `groups`.
-fn highlightEntries(self: App, output: *kosm.Output) kosm.Output.Error![]const kosm.Value.Entry {
-    const allocator = output.allocator;
+/// kosm's own written groups by Neovim's name.
+fn ownGroups(self: App, allocator: std.mem.Allocator) std.mem.Allocator.Error![]const kosm.Value.Entry {
     var entries: std.ArrayList(kosm.Value.Entry) = .empty;
     try appendGroups(allocator, &entries, self.editor);
     try appendGroups(allocator, &entries, self.syntax);
     try appendGroups(allocator, &entries, self.treesitter);
     try appendGroups(allocator, &entries, self.diagnostics);
     try appendGroups(allocator, &entries, self.diff);
-    for (self.groups) |group| {
-        for (entries.items) |entry| {
-            if (std.mem.eql(u8, entry.key, group.name)) return output.fail(self.file, "group '{s}' in groups is already written, by one of the app's fields or an earlier entry; set it once", .{group.name});
+    return entries.items;
+}
+
+/// `groups` by name; one in `own` or listed twice fails naming it.
+fn groupEntries(self: App, output: *kosm.Output, file: []const u8, own: []const kosm.Value.Entry) kosm.Output.Error![]const kosm.Value.Entry {
+    const allocator = output.allocator;
+    var entries: std.ArrayList(kosm.Value.Entry) = .empty;
+    for (self.groups, 0..) |group, index| {
+        for (own) |entry| {
+            if (std.mem.eql(u8, entry.key, group.name)) return output.fail(file, "group '{s}' in groups is one of the app's own; set its field instead, or name a colorscheme to replace the app's groups", .{group.name});
+        }
+        for (self.groups[0..index]) |earlier| {
+            if (std.mem.eql(u8, earlier.name, group.name)) return output.fail(file, "group '{s}' is listed twice in groups; set it once", .{group.name});
         }
         if (try group.highlight.value(allocator)) |value| try entries.append(allocator, .{ .key = group.name, .value = value });
     }
@@ -236,14 +280,14 @@ test "App{} writes an empty module, and only set groups and values are written" 
     var app: App = .{};
     app.editor.cursor_line.bg = kosm.hex("0d2630");
     app.terminal.cyan = kosm.hex("268078");
-    const tree_value = try app.tree(&fixture.output);
+    const tree_value = try app.tree(&fixture.output, "theme.lua");
     try testing.expectEqual(2, tree_value.table.len);
     try testing.expectEqualStrings("CursorLine", tree_value.table[0].value.table[0].key);
     try testing.expectEqual(1, tree_value.table[0].value.table.len);
     try testing.expectEqualStrings("cyan", tree_value.table[1].value.table[0].key);
 }
 
-test "groups are written by name after the app's own, and one already written fails naming it" {
+test "groups are written by name apart from the app's own, and one of the app's or listed twice fails naming it" {
     var fixture: Fixture = undefined;
     try fixture.init();
     defer fixture.deinit();
@@ -260,6 +304,8 @@ test "groups are written by name after the app's own, and one already written fa
         \\        Comment = {
         \\            fg = "#758387",
         \\        },
+        \\    },
+        \\    groups = {
         \\        TreesitterContextBottom = {
         \\            sp = "#023142",
         \\            underline = true,
@@ -274,7 +320,51 @@ test "groups are written by name after the app's own, and one already written fa
 
     app.groups = &.{.{ .name = "Comment", .highlight = .{ .italic = true } }};
     try testing.expectError(error.AppFailed, app.apply(&fixture.output));
-    try testing.expectEqualStrings("group 'Comment' in groups is already written, by one of the app's fields or an earlier entry; set it once", fixture.diagnostics.message());
+    try testing.expectEqualStrings("group 'Comment' in groups is one of the app's own; set its field instead, or name a colorscheme to replace the app's groups", fixture.diagnostics.message());
+
+    app.groups = &.{
+        .{ .name = "FlashLabel", .highlight = .{ .bold = true } },
+        .{ .name = "FlashLabel", .highlight = .{ .italic = true } },
+    };
+    try testing.expectError(error.AppFailed, app.apply(&fixture.output));
+    try testing.expectEqualStrings("group 'FlashLabel' is listed twice in groups; set it once", fixture.diagnostics.message());
+}
+
+test "a colorscheme replaces the app's own groups, and the kosmos' groups may then name any group" {
+    var fixture: Fixture = undefined;
+    try fixture.init();
+    defer fixture.deinit();
+    var app = from(kosm.Theme.from(.{ .palette = test_palette, .mode = .dark }));
+    app.colorscheme = "catppuccin-mocha";
+    app.groups = &.{.{ .name = "Comment", .highlight = .{ .italic = true } }};
+    try app.apply(&fixture.output);
+    const written = fixture.written();
+    try testing.expectStringStartsWith(written, "return {\n    background = \"dark\",\n    colorscheme = \"catppuccin-mocha\",\n    groups = {\n        Comment = {\n            italic = true,\n        },\n    },\n    terminal = {\n");
+    try testing.expect(!contains(written, "highlights"));
+}
+
+test "the colors go to lua/kosm/theme.lua with the plugin beside them, or alone without it" {
+    var fixture: Fixture = undefined;
+    try fixture.init();
+    defer fixture.deinit();
+    var app: App = .{ .directory = "~/.config/nvim-work/" };
+    try app.apply(&fixture.output);
+    const files = fixture.plan.files.items;
+    try testing.expectEqual(4, files.len);
+    try testing.expectStringEndsWith(files[0].path, "/.config/nvim-work/lua/kosm/theme.lua");
+    try testing.expectStringEndsWith(files[1].path, "/.config/nvim-work/lua/kosm/init.lua");
+    try testing.expectStringEndsWith(files[2].path, "/.config/nvim-work/plugin/kosm.lua");
+    try testing.expectStringEndsWith(files[3].path, "/.config/nvim-work/colors/kosm.lua");
+    try testing.expectEqualStrings("require('kosm').setup()\n", files[2].new[std.mem.indexOfScalar(u8, files[2].new, '\n').? + 1 ..]);
+}
+
+test "without the plugin only the colors are written" {
+    var fixture: Fixture = undefined;
+    try fixture.init();
+    defer fixture.deinit();
+    const app: App = .{ .plugin = false };
+    try app.apply(&fixture.output);
+    try testing.expectEqual(1, fixture.plan.files.items.len);
 }
 
 test "extras follow the app's values, nested by path, and a clash fails naming both" {

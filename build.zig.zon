@@ -21,6 +21,7 @@
         "Highlight.zig",
         "Group.zig",
         "names.zig",
+        "nvim",
         "Editor.zig",
         "Syntax.zig",
         "Treesitter.zig",
