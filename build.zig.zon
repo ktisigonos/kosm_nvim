@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .kosm = .{
-            .url = "git+https://git.nnstdios.com/ktisigonos/kosm?ref=master#7346ed5bfef5f16f8d3cd39d1d437e746746a2a8",
-            .hash = "kosm-0.0.0-YCShsgmjCgDiHp77PKiytuVIJmGxJFJZwID74VSnDXpM",
+            .url = "git+https://git.nnstdios.com/ktisigonos/kosm?ref=master#9e08b2b95296a1c0cbe0d872e07c6b840fdc6268",
+            .hash = "kosm-0.0.0-YCShso99DQAXLyHK_Vy-r5uDXZpLzJoKnSg9mj-yq_Az",
         },
         .kosm_lua = .{
             .url = "git+https://git.nnstdios.com/ktisigonos/kosm_lua?ref=master#6a16d7c827549ab470614585cd4ba91fd404a3f6",
@@ -18,7 +18,14 @@
         "build.zig.zon",
         "root.zig",
         "App.zig",
-        "Base16.zig",
+        "Highlight.zig",
+        "Group.zig",
+        "names.zig",
+        "Editor.zig",
+        "Syntax.zig",
+        "Treesitter.zig",
+        "Diagnostics.zig",
+        "Diff.zig",
         "Terminal.zig",
         "README.md",
     },

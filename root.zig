@@ -1,8 +1,8 @@
-//! Neovim: a base16 palette generated as `lua/theme.lua`, for a base16 colorscheme plugin to load.
+//! Neovim: its highlight groups and terminal colors generated as `lua/theme.lua`, for the nvim config to set.
 
 const std = @import("std");
 
-/// The palette; build one with `from`.
+/// The colors; build them with `from`.
 pub const App = @import("App.zig");
 /// Colors from the theme.
 pub const from = App.from;
@@ -12,4 +12,5 @@ pub const lua_adapter = @import("kosm_lua").adapter;
 test {
     std.testing.refAllDecls(@This());
     std.testing.refAllDecls(App);
+    std.testing.refAllDecls(@import("names.zig"));
 }
