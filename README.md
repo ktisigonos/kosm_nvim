@@ -73,7 +73,8 @@ Every group is empty and every color null by default; the column says what `from
 | `editor.float_border` | `line.border` of the background, on the float's background |
 | `editor.cursor_line` | a `state.hovered` background |
 | `editor.cursor_line_nr`, `editor.match_paren`, `editor.title` | the accent, bold |
-| `editor.line_nr`, `editor.fold_column`, `editor.non_text`, `editor.conceal` | `emphasis.faint` of the foreground |
+| `editor.line_nr`, `editor.fold_column` | `emphasis.muted` of the foreground, as comments |
+| `editor.non_text`, `editor.conceal` | `emphasis.faint` of the foreground |
 | `editor.folded` | `emphasis.muted` text on `surface.raised` |
 | `editor.visual`, `editor.quick_fix_line` | a `state.selected` background, opaque |
 | `editor.search` | the secondary role behind readable text |

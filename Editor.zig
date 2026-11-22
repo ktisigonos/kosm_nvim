@@ -18,7 +18,8 @@ float_border: Highlight = .{},
 cursor_line: Highlight = .{},
 /// `CursorLineNr`: the cursor's line number. `from`: the accent, bold.
 cursor_line_nr: Highlight = .{},
-/// `LineNr`: line numbers. `from`: `emphasis.faint` of the foreground.
+/// `LineNr`: line numbers, and with `relativenumber` the distances to the cursor's line.
+/// `from`: `emphasis.muted` of the foreground, as comments, so they stay readable.
 line_nr: Highlight = .{},
 /// `FoldColumn`: the fold column. `from`: as `line_nr`.
 fold_column: Highlight = .{},
@@ -113,8 +114,8 @@ pub fn from(theme: kosm.Theme) Editor {
         .float_border = .{ .fg = variations.line.border.apply(roles.background), .bg = raised },
         .cursor_line = .{ .bg = variations.state.hovered.apply(window) },
         .cursor_line_nr = .{ .fg = roles.accent, .bold = true },
-        .line_nr = .{ .fg = faint },
-        .fold_column = .{ .fg = faint },
+        .line_nr = .{ .fg = muted },
+        .fold_column = .{ .fg = muted },
         .folded = .{ .fg = muted, .bg = raised },
         .non_text = .{ .fg = faint },
         .visual = .{ .bg = selected },
