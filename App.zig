@@ -109,6 +109,12 @@ const plugin_files = [_]struct { path: []const u8, content: []const u8 }{
     .{ .path = "colors/kosm.lua", .content = @embedFile("nvim/colors/kosm.lua") },
 };
 
+/// What `kosm doctor` checks: Neovim installed, as the `nvim` command.
+pub fn checkup(self: App) kosm.Checkup {
+    _ = self;
+    return .{ .program = .{ .command = "nvim" } };
+}
+
 /// Writes every set value to `lua/kosm/theme.lua`, then the extras, then the plugin.
 pub fn apply(self: App, output: *kosm.Output) !void {
     const allocator = output.allocator;

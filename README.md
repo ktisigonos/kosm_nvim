@@ -54,6 +54,8 @@ each a `kosm.Value`: `.{ .path = "accent.soft", .value = .{ .color = kosm.hex("2
 `accent.soft`. An extra whose path equals, contains or lies inside a set value's or another
 extra's fails the apply naming both.
 
+`kosm doctor` checks that Neovim is installed, as the `nvim` command.
+
 ## Fields
 
 Every group is empty and every color null by default; the column says what `from(theme)` sets.
